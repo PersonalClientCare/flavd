@@ -2,18 +2,19 @@ import "dart:async";
 
 import "package:flutter/foundation.dart";
 
-import "../models/avd_device.dart";
-import "../models/form_factor.dart";
-import "../services/avd_service.dart";
-import "../services/sdk_installer_service.dart";
+import "package:flavd/models/adb_device.dart";
+import "package:flavd/models/avd_device.dart";
+import "package:flavd/models/form_factor.dart";
+import "package:flavd/services/avd_service.dart";
+import "package:flavd/services/sdk_installer_service.dart";
 
 /// Application-wide state for AVD management.
 class DeviceProvider extends ChangeNotifier {
   DeviceProvider({
     required AvdService avdService,
     required SdkInstallerService sdkInstaller,
-  })  : _avdService = avdService,
-        _sdkInstaller = sdkInstaller;
+  }) : _avdService = avdService,
+       _sdkInstaller = sdkInstaller;
 
   final AvdService _avdService;
   final SdkInstallerService _sdkInstaller;
@@ -43,6 +44,9 @@ class DeviceProvider extends ChangeNotifier {
   List<AvdDevice> _devices = [];
   List<AvdDevice> get devices => List.unmodifiable(_devices);
 
+  List<AdbDevice> _adbDevices = [];
+  List<AdbDevice> get adbDevices => List.unmodifiable(_adbDevices);
+
   String? _error;
   String? get error => _error;
 
@@ -61,6 +65,7 @@ class DeviceProvider extends ChangeNotifier {
     _sdkChecked = true;
     if (_sdkReady) {
       await _loadDevices();
+      await _loadAdbDevices();
     }
     _setLoading(false);
   }
@@ -87,6 +92,7 @@ class DeviceProvider extends ChangeNotifier {
       _sdkReady = await _avdService.detectTools();
       if (_sdkReady) {
         await _loadDevices();
+        await _loadAdbDevices();
       }
     } on AvdException catch (e) {
       _error = e.message;
@@ -102,10 +108,11 @@ class DeviceProvider extends ChangeNotifier {
   // Devices
   // ---------------------------------------------------------------------------
 
-  /// Refreshes the device list.
+  /// Refreshes both the AVD and physical device lists.
   Future<void> refresh() async {
     _setLoading(true);
     await _loadDevices();
+    await _loadAdbDevices();
     _setLoading(false);
   }
 
@@ -120,14 +127,24 @@ class DeviceProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadAdbDevices() async {
+    try {
+      _adbDevices = await _avdService.listAdbDevices();
+    } on AvdException catch (e) {
+      debugPrint("[_loadAdbDevices] AvdException: ${e.message}");
+    } catch (e) {
+      debugPrint("[_loadAdbDevices] Unexpected error: $e");
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Start / stop
   // ---------------------------------------------------------------------------
 
-  Future<void> startDevice(String name) async {
-    debugPrint("[startDevice] called with name=$name");
+  Future<void> startDevice(String name, {bool coldBoot = false}) async {
+    debugPrint("[startDevice] called with name=$name, coldBoot=$coldBoot");
     try {
-      await _avdService.startAvd(name);
+      await _avdService.startAvd(name, coldBoot: coldBoot);
       // Give the emulator a moment to register, then refresh.
       await Future<void>.delayed(const Duration(seconds: 2));
       await refresh();
@@ -210,6 +227,64 @@ class DeviceProvider extends ChangeNotifier {
       _appendLog("Error: $e");
       notifyListeners();
       return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wireless ADB – pair / connect / disconnect
+  // ---------------------------------------------------------------------------
+
+  /// Pairs with a device using Android 11+ wireless debugging.
+  ///
+  /// [host] is the IP address, [port] is the pairing port shown on the phone,
+  /// and [code] is the 6-digit pairing code.
+  Future<String> pairDevice({
+    required String host,
+    required int port,
+    required String code,
+  }) async {
+    try {
+      final result = await _avdService.pairDevice(
+        host: host,
+        port: port,
+        code: code,
+      );
+      await refresh();
+      return result;
+    } on AvdException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Connects to a device over TCP/IP wireless ADB.
+  Future<String> connectDevice({
+    required String host,
+    required int port,
+  }) async {
+    try {
+      final result = await _avdService.connectDevice(host: host, port: port);
+      await refresh();
+      return result;
+    } on AvdException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Disconnects a wireless ADB device by its serial (e.g. "192.168.1.42:5555").
+  Future<void> disconnectDevice(String serial) async {
+    try {
+      await _avdService.disconnectDevice(serial);
+      _adbDevices.removeWhere((d) => d.serial == serial);
+      notifyListeners();
+      // Full refresh to get accurate state.
+      await refresh();
+    } on AvdException catch (e) {
+      _error = e.message;
+      notifyListeners();
     }
   }
 

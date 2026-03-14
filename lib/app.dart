@@ -1,10 +1,10 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
-import "providers/device_provider.dart";
-import "screens/home_screen.dart";
-import "services/avd_service.dart";
-import "services/sdk_installer_service.dart";
+import "package:flavd/providers/device_provider.dart";
+import "package:flavd/screens/home_screen.dart";
+import "package:flavd/services/avd_service.dart";
+import "package:flavd/services/sdk_installer_service.dart";
 
 class FlavdApp extends StatelessWidget {
   const FlavdApp({super.key});

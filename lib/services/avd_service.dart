@@ -5,8 +5,9 @@ import "dart:io";
 import "package:flutter/foundation.dart";
 import "package:path/path.dart" as p;
 
-import "../models/avd_device.dart";
-import "../models/form_factor.dart";
+import "package:flavd/models/adb_device.dart";
+import "package:flavd/models/avd_device.dart";
+import "package:flavd/models/form_factor.dart";
 
 /// Wraps the Android command-line tools (`avdmanager`, `emulator`, `sdkmanager`).
 ///
@@ -124,8 +125,8 @@ class AvdService {
   // ---------------------------------------------------------------------------
 
   /// Launches the AVD with [name] in a detached emulator process.
-  Future<void> startAvd(String name) async {
-    debugPrint("[startAvd] called with name=$name");
+  Future<void> startAvd(String name, {bool coldBoot = false}) async {
+    debugPrint("[startAvd] called with name=$name, coldBoot=$coldBoot");
     _requireEmulator();
     debugPrint("[startAvd] emulatorPath=$emulatorPath");
     final env = _sdkEnv;
@@ -137,11 +138,12 @@ class AvdService {
       if (Platform.isWindows) {
         final sdkRoot = env["ANDROID_SDK_ROOT"] ?? "";
         final escaped = emulatorPath!.replaceAll("'", "''");
+        final coldBootArg = coldBoot ? ",'-no-snapshot-load'" : "";
         final psCommand =
             "\$env:ANDROID_SDK_ROOT='$sdkRoot'; "
             "\$env:ANDROID_HOME='$sdkRoot'; "
             "Start-Process -FilePath '$escaped' "
-            "-ArgumentList '-avd','$name' "
+            "-ArgumentList '-avd','$name','-dns-server','8.8.8.8'$coldBootArg "
             "-WorkingDirectory '$workDir' "
             "-WindowStyle Hidden";
         debugPrint("[startAvd] psCommand=$psCommand");
@@ -162,9 +164,11 @@ class AvdService {
           );
         }
       } else {
+        final args = ["-avd", name, "-dns-server", "8.8.8.8"];
+        if (coldBoot) args.add("-no-snapshot-load");
         final process = await Process.start(
           emulatorPath!,
-          ["-avd", name],
+          args,
           environment: env,
           workingDirectory: workDir,
         );
@@ -585,6 +589,134 @@ class AvdService {
       multiLine: true,
     ).firstMatch(block);
     return match?.group(1)?.trim();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wireless ADB – list / pair / connect / disconnect
+  // ---------------------------------------------------------------------------
+
+  /// Returns all physical (non-emulator) devices currently visible to ADB.
+  Future<List<AdbDevice>> listAdbDevices() async {
+    if (adbPath == null) return [];
+    final result = await Process.run(adbPath!, ["devices", "-l"]);
+    if (result.exitCode != 0) return [];
+    return parseAdbDevicesOutput(result.stdout.toString());
+  }
+
+  /// Parses the output of `adb devices -l` and returns only non-emulator
+  /// devices (i.e. physical phones – both USB and wireless).
+  @visibleForTesting
+  List<AdbDevice> parseAdbDevicesOutput(String output) {
+    final devices = <AdbDevice>[];
+    for (final line in output.split("\n")) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith("List of devices")) continue;
+
+      // Each device line looks like:
+      //   192.168.1.42:5555  device product:oriole model:Pixel_6 transport_id:3
+      //   RZCW30XXXXX        device product:oriole model:Pixel_6 transport_id:1
+      //   emulator-5554      device product:sdk_gphone …
+      final match = RegExp(
+        r"^(\S+)\s+(device|offline|unauthorized|recovery|unknown)\b(.*)$",
+      ).firstMatch(trimmed);
+      if (match == null) continue;
+
+      final serial = match.group(1)!;
+
+      // Skip emulators – they are managed via the AVD list.
+      if (serial.startsWith("emulator-")) continue;
+
+      final stateStr = match.group(2)!;
+      final rest = match.group(3) ?? "";
+
+      String? extract(String key) {
+        final m = RegExp("$key:(\\S+)").firstMatch(rest);
+        return m?.group(1);
+      }
+
+      devices.add(
+        AdbDevice(
+          serial: serial,
+          state: AdbDeviceState.fromString(stateStr),
+          model: extract("model"),
+          product: extract("product"),
+          transportId: extract("transport_id"),
+        ),
+      );
+    }
+    return devices;
+  }
+
+  /// Pairs with a device using Android 11+ wireless debugging.
+  ///
+  /// [host] is the IP address, [port] is the pairing port shown on the phone,
+  /// and [code] is the 6-digit pairing code.  Returns the raw ADB output.
+  Future<String> pairDevice({
+    required String host,
+    required int port,
+    required String code,
+  }) async {
+    if (adbPath == null) {
+      throw const AvdException("adb not found – cannot pair device.");
+    }
+    final process = await Process.start(adbPath!, [
+      "pair",
+      "$host:$port",
+    ], environment: _sdkEnv);
+
+    // ADB prompts "Enter pairing code: " on stdout – write the code to stdin.
+    process.stdin.writeln(code);
+    await process.stdin.close();
+
+    final stdout = await process.stdout.transform(utf8.decoder).join();
+    final stderr = await process.stderr.transform(utf8.decoder).join();
+    final exitCode = await process.exitCode;
+
+    final output = "$stdout\n$stderr".trim();
+
+    if (exitCode != 0 || output.toLowerCase().contains("failed")) {
+      throw AvdException(
+        "Pairing failed: ${output.isNotEmpty ? output : 'unknown error'}",
+      );
+    }
+    return output;
+  }
+
+  /// Connects to a device over TCP/IP wireless ADB.
+  ///
+  /// [host] is the IP address and [port] is the ADB connect port (typically
+  /// the port shown under "Wireless debugging" after pairing, or 5555 for
+  /// legacy `adb tcpip` connections).  Returns the raw ADB output.
+  Future<String> connectDevice({
+    required String host,
+    required int port,
+  }) async {
+    if (adbPath == null) {
+      throw const AvdException("adb not found – cannot connect device.");
+    }
+    final result = await Process.run(adbPath!, [
+      "connect",
+      "$host:$port",
+    ], environment: _sdkEnv);
+    final output = "${result.stdout}\n${result.stderr}".trim();
+
+    if (result.exitCode != 0 ||
+        output.toLowerCase().contains("failed") ||
+        output.toLowerCase().contains("cannot")) {
+      throw AvdException(
+        "Connection failed: ${output.isNotEmpty ? output : 'unknown error'}",
+      );
+    }
+    return output;
+  }
+
+  /// Disconnects a wireless ADB device identified by [serial]
+  /// (e.g. "192.168.1.42:5555").
+  Future<void> disconnectDevice(String serial) async {
+    if (adbPath == null) {
+      throw const AvdException("adb not found – cannot disconnect device.");
+    }
+    await _runChecked(adbPath!, ["disconnect", serial]);
   }
 
   // ---------------------------------------------------------------------------

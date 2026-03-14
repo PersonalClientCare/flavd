@@ -1,9 +1,13 @@
+import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:qr/qr.dart";
 
+import "package:flavd/models/adb_device.dart";
 import "package:flavd/models/avd_device.dart";
 import "package:flavd/models/form_factor.dart";
 import "package:flavd/models/api_level.dart";
 import "package:flavd/services/avd_service.dart";
+import "package:flavd/widgets/qr_painter_widget.dart";
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -11,10 +15,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group("AvdDevice", () {
     test("copyWith overrides only specified fields", () {
-      const original = AvdDevice(
-        name: "Pixel_6",
-        tagAbi: "google_apis/x86_64",
-      );
+      const original = AvdDevice(name: "Pixel_6", tagAbi: "google_apis/x86_64");
       final copy = original.copyWith(isRunning: true);
       expect(copy.name, "Pixel_6");
       expect(copy.tagAbi, "google_apis/x86_64");
@@ -143,8 +144,11 @@ void main() {
 
     test("all presets have non-empty names", () {
       for (final f in FormFactor.presets) {
-        expect(f.name.isNotEmpty, isTrue,
-            reason: "Preset name must not be empty");
+        expect(
+          f.name.isNotEmpty,
+          isTrue,
+          reason: "Preset name must not be empty",
+        );
       }
     });
 
@@ -172,8 +176,9 @@ void main() {
 
     test("wear diagonal is the smallest non-custom preset", () {
       final wearDiag = FormFactor.wear.diagonalInches;
-      for (final f in FormFactor.presets
-          .where((f) => !f.isCustom && f != FormFactor.wear)) {
+      for (final f in FormFactor.presets.where(
+        (f) => !f.isCustom && f != FormFactor.wear,
+      )) {
         expect(
           wearDiag,
           lessThan(f.diagonalInches),
@@ -230,10 +235,7 @@ void main() {
 
     test("packageId produces correct format", () {
       const api = ApiLevel(level: 34, name: "Android 14");
-      expect(
-        api.packageId(),
-        "system-images;android-34;google_apis;x86_64",
-      );
+      expect(api.packageId(), "system-images;android-34;google_apis;x86_64");
     });
 
     test("packageId respects custom tag and abi", () {
@@ -268,8 +270,11 @@ void main() {
 
     test("all supported levels have non-empty names", () {
       for (final api in ApiLevel.supported) {
-        expect(api.name.isNotEmpty, isTrue,
-            reason: "API ${api.level} name must not be empty");
+        expect(
+          api.name.isNotEmpty,
+          isTrue,
+          reason: "API ${api.level} name must not be empty",
+        );
       }
     });
 
@@ -515,6 +520,692 @@ Available Android Virtual Devices:
       expect(devices[2].name, "WearOS_Round");
       expect(devices[2].device, isNull);
       expect(devices[2].tagAbi, "android-wear/x86");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AdbDevice model
+  // ---------------------------------------------------------------------------
+  group("AdbDevice", () {
+    test("isWireless returns true for IP:port serials", () {
+      const d = AdbDevice(serial: "192.168.1.42:5555");
+      expect(d.isWireless, isTrue);
+    });
+
+    test("isWireless returns false for USB serials", () {
+      const d = AdbDevice(serial: "RZCW30ABCDEF");
+      expect(d.isWireless, isFalse);
+    });
+
+    test("isWireless returns false for emulator-like serials", () {
+      const d = AdbDevice(serial: "emulator-5554");
+      expect(d.isWireless, isFalse);
+    });
+
+    test("isWireless returns true for various IP addresses", () {
+      const d1 = AdbDevice(serial: "10.0.0.1:37123");
+      const d2 = AdbDevice(serial: "172.16.255.1:5555");
+      const d3 = AdbDevice(serial: "255.255.255.255:65535");
+      expect(d1.isWireless, isTrue);
+      expect(d2.isWireless, isTrue);
+      expect(d3.isWireless, isTrue);
+    });
+
+    test("isWireless returns false for partial IP without port", () {
+      const d = AdbDevice(serial: "192.168.1.42");
+      expect(d.isWireless, isFalse);
+    });
+
+    test("displayName returns model when available", () {
+      const d = AdbDevice(serial: "192.168.1.42:5555", model: "Pixel_6");
+      expect(d.displayName, "Pixel_6");
+    });
+
+    test("displayName returns serial when model is null", () {
+      const d = AdbDevice(serial: "192.168.1.42:5555");
+      expect(d.displayName, "192.168.1.42:5555");
+    });
+
+    test("displayName returns serial when model is empty", () {
+      const d = AdbDevice(serial: "RZCW30ABCDEF", model: "");
+      expect(d.displayName, "RZCW30ABCDEF");
+    });
+
+    test("default state is device", () {
+      const d = AdbDevice(serial: "test");
+      expect(d.state, AdbDeviceState.device);
+    });
+
+    test("copyWith overrides only specified fields", () {
+      const original = AdbDevice(
+        serial: "192.168.1.42:5555",
+        model: "Pixel_6",
+        product: "oriole",
+        transportId: "3",
+        state: AdbDeviceState.device,
+      );
+      final copy = original.copyWith(state: AdbDeviceState.offline);
+      expect(copy.serial, "192.168.1.42:5555");
+      expect(copy.model, "Pixel_6");
+      expect(copy.product, "oriole");
+      expect(copy.transportId, "3");
+      expect(copy.state, AdbDeviceState.offline);
+    });
+
+    test("copyWith with no arguments returns identical values", () {
+      const original = AdbDevice(
+        serial: "RZCW30ABCDEF",
+        model: "Galaxy_S22",
+        product: "dm1q",
+        transportId: "1",
+        state: AdbDeviceState.unauthorized,
+      );
+      final copy = original.copyWith();
+      expect(copy.serial, original.serial);
+      expect(copy.model, original.model);
+      expect(copy.product, original.product);
+      expect(copy.transportId, original.transportId);
+      expect(copy.state, original.state);
+    });
+
+    test("copyWith can override every field", () {
+      const original = AdbDevice(serial: "old");
+      final copy = original.copyWith(
+        serial: "new_serial",
+        model: "new_model",
+        product: "new_product",
+        transportId: "99",
+        state: AdbDeviceState.recovery,
+      );
+      expect(copy.serial, "new_serial");
+      expect(copy.model, "new_model");
+      expect(copy.product, "new_product");
+      expect(copy.transportId, "99");
+      expect(copy.state, AdbDeviceState.recovery);
+    });
+
+    test("all optional fields default to null", () {
+      const d = AdbDevice(serial: "test");
+      expect(d.model, isNull);
+      expect(d.product, isNull);
+      expect(d.transportId, isNull);
+    });
+
+    test("toString contains serial and model", () {
+      const d = AdbDevice(serial: "192.168.1.42:5555", model: "Pixel_6");
+      final s = d.toString();
+      expect(s, contains("192.168.1.42:5555"));
+      expect(s, contains("Pixel_6"));
+    });
+
+    test("toString contains state", () {
+      const d = AdbDevice(serial: "test", state: AdbDeviceState.unauthorized);
+      expect(d.toString(), contains("unauthorized"));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AdbDeviceState
+  // ---------------------------------------------------------------------------
+  group("AdbDeviceState", () {
+    test("fromString parses 'device'", () {
+      expect(AdbDeviceState.fromString("device"), AdbDeviceState.device);
+    });
+
+    test("fromString parses 'offline'", () {
+      expect(AdbDeviceState.fromString("offline"), AdbDeviceState.offline);
+    });
+
+    test("fromString parses 'unauthorized'", () {
+      expect(
+        AdbDeviceState.fromString("unauthorized"),
+        AdbDeviceState.unauthorized,
+      );
+    });
+
+    test("fromString parses 'recovery'", () {
+      expect(AdbDeviceState.fromString("recovery"), AdbDeviceState.recovery);
+    });
+
+    test("fromString returns unknown for unrecognised strings", () {
+      expect(AdbDeviceState.fromString("bogus"), AdbDeviceState.unknown);
+      expect(AdbDeviceState.fromString(""), AdbDeviceState.unknown);
+    });
+
+    test("fromString is case-insensitive", () {
+      expect(AdbDeviceState.fromString("DEVICE"), AdbDeviceState.device);
+      expect(AdbDeviceState.fromString("Device"), AdbDeviceState.device);
+      expect(AdbDeviceState.fromString("OFFLINE"), AdbDeviceState.offline);
+      expect(
+        AdbDeviceState.fromString("Unauthorized"),
+        AdbDeviceState.unauthorized,
+      );
+    });
+
+    test("fromString trims whitespace", () {
+      expect(AdbDeviceState.fromString("  device  "), AdbDeviceState.device);
+      expect(AdbDeviceState.fromString("\toffline\n"), AdbDeviceState.offline);
+    });
+
+    test("label returns human-readable text for each state", () {
+      expect(AdbDeviceState.device.label, "Online");
+      expect(AdbDeviceState.recovery.label, "Recovery");
+      expect(AdbDeviceState.unauthorized.label, "Unauthorized");
+      expect(AdbDeviceState.offline.label, "Offline");
+      expect(AdbDeviceState.unknown.label, "Unknown");
+    });
+
+    test("all enum values have non-empty labels", () {
+      for (final state in AdbDeviceState.values) {
+        expect(
+          state.label.isNotEmpty,
+          isTrue,
+          reason: "$state should have a non-empty label",
+        );
+      }
+    });
+
+    test("enum has exactly 5 values", () {
+      expect(AdbDeviceState.values.length, 5);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AvdService – ADB devices output parsing
+  // ---------------------------------------------------------------------------
+  group("AvdService ADB devices parsing", () {
+    late AvdService svc;
+
+    setUp(() => svc = AvdService());
+
+    test("parses single wireless device", () {
+      const output = """
+List of devices attached
+192.168.1.42:5555      device product:oriole model:Pixel_6 transport_id:3
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "192.168.1.42:5555");
+      expect(devices.first.model, "Pixel_6");
+      expect(devices.first.product, "oriole");
+      expect(devices.first.transportId, "3");
+      expect(devices.first.state, AdbDeviceState.device);
+      expect(devices.first.isWireless, isTrue);
+    });
+
+    test("parses single USB device", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           device product:dm1q model:Galaxy_S22 transport_id:1
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "RZCW30ABCDEF");
+      expect(devices.first.model, "Galaxy_S22");
+      expect(devices.first.product, "dm1q");
+      expect(devices.first.transportId, "1");
+      expect(devices.first.state, AdbDeviceState.device);
+      expect(devices.first.isWireless, isFalse);
+    });
+
+    test("skips emulator devices", () {
+      const output = """
+List of devices attached
+emulator-5554          device product:sdk_gphone64_x86_64 model:sdk_gphone64_x86_64 transport_id:1
+192.168.1.42:5555      device product:oriole model:Pixel_6 transport_id:3
+emulator-5556          device product:sdk_gphone model:sdk_gphone transport_id:2
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "192.168.1.42:5555");
+    });
+
+    test("parses multiple physical devices", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           device product:dm1q model:Galaxy_S22 transport_id:1
+192.168.1.42:5555      device product:oriole model:Pixel_6 transport_id:3
+ABC123XYZ              device product:raven model:Pixel_6_Pro transport_id:5
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 3);
+      expect(devices[0].serial, "RZCW30ABCDEF");
+      expect(devices[1].serial, "192.168.1.42:5555");
+      expect(devices[2].serial, "ABC123XYZ");
+    });
+
+    test("parses unauthorized device", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           unauthorized transport_id:1
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "RZCW30ABCDEF");
+      expect(devices.first.state, AdbDeviceState.unauthorized);
+      expect(devices.first.model, isNull);
+    });
+
+    test("parses offline device", () {
+      const output = """
+List of devices attached
+192.168.1.42:5555      offline
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "192.168.1.42:5555");
+      expect(devices.first.state, AdbDeviceState.offline);
+      expect(devices.first.isWireless, isTrue);
+    });
+
+    test("parses mixed states", () {
+      const output = """
+List of devices attached
+AAAA1111               device product:oriole model:Pixel_6 transport_id:1
+BBBB2222               unauthorized transport_id:2
+192.168.1.10:5555      offline
+CCCC3333               device product:raven model:Pixel_6_Pro transport_id:4
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 4);
+      expect(devices[0].state, AdbDeviceState.device);
+      expect(devices[1].state, AdbDeviceState.unauthorized);
+      expect(devices[2].state, AdbDeviceState.offline);
+      expect(devices[3].state, AdbDeviceState.device);
+    });
+
+    test("returns empty list for no devices", () {
+      const output = """
+List of devices attached
+
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices, isEmpty);
+    });
+
+    test("returns empty list for empty string", () {
+      expect(svc.parseAdbDevicesOutput(""), isEmpty);
+    });
+
+    test("returns empty list when only emulators are present", () {
+      const output = """
+List of devices attached
+emulator-5554          device product:sdk_gphone64_x86_64 model:sdk_gphone64_x86_64 transport_id:1
+emulator-5556          device product:sdk_gphone model:sdk_gphone transport_id:2
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices, isEmpty);
+    });
+
+    test("handles device with no extra properties", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           device
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "RZCW30ABCDEF");
+      expect(devices.first.state, AdbDeviceState.device);
+      expect(devices.first.model, isNull);
+      expect(devices.first.product, isNull);
+      expect(devices.first.transportId, isNull);
+    });
+
+    test("handles device with only some properties", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           device model:Pixel_6
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.model, "Pixel_6");
+      expect(devices.first.product, isNull);
+      expect(devices.first.transportId, isNull);
+    });
+
+    test("handles recovery state", () {
+      const output = """
+List of devices attached
+RZCW30ABCDEF           recovery
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.state, AdbDeviceState.recovery);
+    });
+
+    test("parses wireless device with high port number", () {
+      const output = """
+List of devices attached
+10.0.0.123:43567       device product:panther model:Pixel_7 transport_id:8
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 1);
+      expect(devices.first.serial, "10.0.0.123:43567");
+      expect(devices.first.model, "Pixel_7");
+      expect(devices.first.isWireless, isTrue);
+    });
+
+    test("ignores header line", () {
+      const output = "List of devices attached\n";
+      expect(svc.parseAdbDevicesOutput(output), isEmpty);
+    });
+
+    test("ignores blank lines mixed in output", () {
+      const output = """
+List of devices attached
+
+AAAA1111               device product:oriole model:Pixel_6 transport_id:1
+
+BBBB2222               device product:raven model:Pixel_6_Pro transport_id:2
+
+""";
+      final devices = svc.parseAdbDevicesOutput(output);
+      expect(devices.length, 2);
+    });
+
+    test(
+      "handles realistic mixed output with emulators and physical devices",
+      () {
+        const output = """
+List of devices attached
+emulator-5554          device product:sdk_gphone64_x86_64 model:sdk_gphone64_x86_64 transport_id:1
+RZCW30ABCDEF           device product:dm1q model:SM_S901B transport_id:2
+192.168.1.100:37845    device product:oriole model:Pixel_6 transport_id:3
+emulator-5556          device product:sdk_gphone model:sdk_gphone transport_id:4
+10.0.0.5:5555          unauthorized transport_id:5
+""";
+        final devices = svc.parseAdbDevicesOutput(output);
+        expect(devices.length, 3);
+
+        expect(devices[0].serial, "RZCW30ABCDEF");
+        expect(devices[0].model, "SM_S901B");
+        expect(devices[0].isWireless, isFalse);
+        expect(devices[0].state, AdbDeviceState.device);
+
+        expect(devices[1].serial, "192.168.1.100:37845");
+        expect(devices[1].model, "Pixel_6");
+        expect(devices[1].isWireless, isTrue);
+        expect(devices[1].state, AdbDeviceState.device);
+
+        expect(devices[2].serial, "10.0.0.5:5555");
+        expect(devices[2].isWireless, isTrue);
+        expect(devices[2].state, AdbDeviceState.unauthorized);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // QR pairing payload format
+  // ---------------------------------------------------------------------------
+  group("QR pairing payload format", () {
+    /// Builds the same payload string that [_WirelessAdbScreenState] builds.
+    String buildQrPayload({
+      required String password,
+      String serviceName = "adb-flavd-pair",
+    }) {
+      return "WIFI:T:ADB;S:$serviceName;P:$password;;";
+    }
+
+    test("payload has correct format with default service name", () {
+      final payload = buildQrPayload(password: "482924");
+      expect(payload, "WIFI:T:ADB;S:adb-flavd-pair;P:482924;;");
+    });
+
+    test("payload has correct format with custom service name", () {
+      final payload = buildQrPayload(
+        password: "123456",
+        serviceName: "my-device",
+      );
+      expect(payload, "WIFI:T:ADB;S:my-device;P:123456;;");
+    });
+
+    test("payload starts with WIFI:T:ADB", () {
+      final payload = buildQrPayload(password: "000000");
+      expect(payload, startsWith("WIFI:T:ADB;"));
+    });
+
+    test("payload ends with double semicolons", () {
+      final payload = buildQrPayload(password: "999999");
+      expect(payload, endsWith(";;"));
+    });
+
+    test("payload contains S: (service name) field", () {
+      final payload = buildQrPayload(
+        password: "111111",
+        serviceName: "test-svc",
+      );
+      expect(payload, contains("S:test-svc;"));
+    });
+
+    test("payload contains P: (password) field", () {
+      final payload = buildQrPayload(password: "654321");
+      expect(payload, contains("P:654321;"));
+    });
+
+    test("payload with empty service name falls back to provided value", () {
+      // The screen defaults to "adb-flavd-pair" when empty, but the builder
+      // itself just uses whatever is passed.
+      final payload = buildQrPayload(password: "123456", serviceName: "");
+      expect(payload, "WIFI:T:ADB;S:;P:123456;;");
+    });
+
+    test("payload with long password is valid", () {
+      final payload = buildQrPayload(password: "abcdef123456789");
+      expect(payload, "WIFI:T:ADB;S:adb-flavd-pair;P:abcdef123456789;;");
+    });
+
+    test("payload can be encoded as a QR code without error", () {
+      final payload = buildQrPayload(password: "482924");
+      expect(
+        () => QrCode.fromData(
+          data: payload,
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test("QR code from payload produces valid image", () {
+      final payload = buildQrPayload(password: "482924");
+      final qrCode = QrCode.fromData(
+        data: payload,
+        errorCorrectLevel: QrErrorCorrectLevel.M,
+      );
+      final qrImage = QrImage(qrCode);
+      expect(qrImage.moduleCount, greaterThan(0));
+    });
+
+    test("QR code module count is consistent for same data", () {
+      final payload = buildQrPayload(password: "482924");
+      final qr1 = QrImage(
+        QrCode.fromData(
+          data: payload,
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+        ),
+      );
+      final qr2 = QrImage(
+        QrCode.fromData(
+          data: payload,
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+        ),
+      );
+      expect(qr1.moduleCount, qr2.moduleCount);
+    });
+
+    test("QR image isDark returns bool for all valid coordinates", () {
+      final payload = buildQrPayload(password: "482924");
+      final qrCode = QrCode.fromData(
+        data: payload,
+        errorCorrectLevel: QrErrorCorrectLevel.M,
+      );
+      final qrImage = QrImage(qrCode);
+      for (var row = 0; row < qrImage.moduleCount; row++) {
+        for (var col = 0; col < qrImage.moduleCount; col++) {
+          // Should not throw, and should return a bool.
+          expect(qrImage.isDark(row, col), isA<bool>());
+        }
+      }
+    });
+
+    test("different passwords produce different QR images", () {
+      final img1 = QrImage(
+        QrCode.fromData(
+          data: buildQrPayload(password: "111111"),
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+        ),
+      );
+      final img2 = QrImage(
+        QrCode.fromData(
+          data: buildQrPayload(password: "222222"),
+          errorCorrectLevel: QrErrorCorrectLevel.M,
+        ),
+      );
+      // At least one module must differ between the two images.
+      var hasDifference = false;
+      final count = img1.moduleCount < img2.moduleCount
+          ? img1.moduleCount
+          : img2.moduleCount;
+      for (var r = 0; r < count && !hasDifference; r++) {
+        for (var c = 0; c < count && !hasDifference; c++) {
+          if (img1.isDark(r, c) != img2.isDark(r, c)) {
+            hasDifference = true;
+          }
+        }
+      }
+      if (!hasDifference) {
+        // Different module counts also count as different.
+        hasDifference = img1.moduleCount != img2.moduleCount;
+      }
+      expect(hasDifference, isTrue);
+    });
+
+    test("higher error correction level is accepted", () {
+      final payload = buildQrPayload(password: "482924");
+      expect(
+        () => QrCode.fromData(
+          data: payload,
+          errorCorrectLevel: QrErrorCorrectLevel.H,
+        ),
+        returnsNormally,
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // QrPainterWidget
+  // ---------------------------------------------------------------------------
+  group("QrPainterWidget", () {
+    testWidgets("renders without error", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: QrPainterWidget(data: "test-data")),
+        ),
+      );
+      expect(find.byType(QrPainterWidget), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(QrPainterWidget),
+          matching: find.byType(CustomPaint),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets("respects custom size", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: QrPainterWidget(data: "test-data", size: 300)),
+        ),
+      );
+      final container = tester.widget<Container>(find.byType(Container).first);
+      final constraints = container.constraints;
+      expect(constraints?.maxWidth, 300);
+      expect(constraints?.maxHeight, 300);
+    });
+
+    testWidgets("renders with ADB pairing payload", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: QrPainterWidget(
+              data: "WIFI:T:ADB;S:adb-flavd-pair;P:482924;;",
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(QrPainterWidget), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("applies custom colors", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: QrPainterWidget(
+              data: "color-test",
+              moduleColor: Colors.blue,
+              backgroundColor: Colors.yellow,
+            ),
+          ),
+        ),
+      );
+      // Widget renders without error — colors are passed to the painter.
+      expect(find.byType(QrPainterWidget), findsOneWidget);
+    });
+
+    testWidgets("applies border radius via ClipRRect", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: QrPainterWidget(data: "clip-test", borderRadius: 20.0),
+          ),
+        ),
+      );
+      final clipRRect = tester.widget<ClipRRect>(find.byType(ClipRRect));
+      final borderRadius = clipRRect.borderRadius as BorderRadius;
+      expect(borderRadius, BorderRadius.circular(20.0));
+    });
+
+    testWidgets("default size is 200", (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: QrPainterWidget(data: "default-size")),
+        ),
+      );
+      final container = tester.widget<Container>(find.byType(Container).first);
+      final constraints = container.constraints;
+      expect(constraints?.maxWidth, 200);
+      expect(constraints?.maxHeight, 200);
+    });
+
+    testWidgets("handles long data strings", (tester) async {
+      final longData = "WIFI:T:ADB;S:${"x" * 100};P:${"9" * 50};;";
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: QrPainterWidget(data: longData)),
+        ),
+      );
+      expect(find.byType(QrPainterWidget), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("renders with all error correction levels", (tester) async {
+      for (final level in [
+        QrErrorCorrectLevel.L,
+        QrErrorCorrectLevel.M,
+        QrErrorCorrectLevel.Q,
+        QrErrorCorrectLevel.H,
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: QrPainterWidget(data: "ecl-test", errorCorrectLevel: level),
+            ),
+          ),
+        );
+        expect(find.byType(QrPainterWidget), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
     });
   });
 }

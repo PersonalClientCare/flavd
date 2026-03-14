@@ -22,6 +22,9 @@ emulators without needing the full Android Studio IDE.
 | Feature | Description |
 |---|---|
 | **Device list** | See all your existing AVDs at a glance. |
+| **Physical devices** | View USB and wirelessly connected physical Android devices. |
+| **Wireless ADB** | Pair and connect to a real phone over Wi-Fi (Android 11+ wireless debugging) — manually or via QR code. |
+| **QR code pairing** | Generate a scannable QR code that your phone can read with "Pair device with QR code" for one-tap pairing. |
 | **Start / Stop** | Launch an emulator or gracefully stop a running one. |
 | **Delete** | Remove an AVD with a confirmation dialog. |
 | **Create device** | Guided form to create a new AVD. |
@@ -144,6 +147,58 @@ creating the AVD.
 
 ---
 
+## Connecting a real phone via Wireless ADB
+
+flavd supports connecting physical Android devices over Wi-Fi using Android 11+
+wireless debugging. Click the **Wi-Fi icon** (📡) in the app bar to open the
+Wireless ADB screen.
+
+### Android 11+ — Manual pairing
+
+1. On your phone, go to **Settings → Developer options → Wireless debugging** and
+   enable it.
+2. Tap **Pair device with pairing code** — note the IP address, pairing port, and
+   6-digit code.
+3. In flavd, open the Wireless ADB screen, keep the **Manual** tab selected in
+   Step 1, fill in the values, and click **Pair**.
+4. After pairing succeeds, enter the IP address and the **connect port** shown on the
+   Wireless debugging screen (this is different from the pairing port) into Step 2
+   (Connect) and click **Connect**.
+5. The device appears in the home screen under **Physical Devices**.
+
+> Pairing only needs to be done once per computer. After that you can reconnect
+> using just Step 2 whenever the phone is on the same Wi-Fi network.
+
+### Android 11+ — QR code pairing
+
+1. On your phone, go to **Settings → Developer options → Wireless debugging**.
+2. In flavd, open the Wireless ADB screen and switch to the **QR Code** tab in
+   Step 1.
+3. Enter the pairing code (password) shown on the phone and optionally a service
+   name, then click **Generate QR Code**.
+4. On your phone, tap **Pair device with QR code** and point the camera at the QR
+   code displayed in flavd.
+5. Once the phone confirms pairing, fill in the IP address, pairing port, and
+   pairing code in the "After the phone confirms pairing" section and click
+   **Complete Pairing** to register the device with ADB.
+6. Proceed to Step 2 (Connect) as usual.
+
+### Legacy method (Android 10 and below)
+
+1. Connect the phone via USB and ensure ADB debugging is authorised.
+2. Run `adb tcpip 5555` in a terminal.
+3. Disconnect the USB cable.
+4. In flavd, skip Step 1 and go straight to Step 2 — enter the phone's IP address
+   with port **5555** and click **Connect**.
+
+### Disconnecting
+
+Wirelessly connected devices show a **disconnect** button (🔗✕) on their card in the
+home screen. USB-connected devices are shown but cannot be disconnected from the GUI
+(just unplug the cable).
+
+---
+
 ## Project structure
 
 ```
@@ -151,6 +206,7 @@ lib/
 ├── main.dart                      Entry point
 ├── app.dart                       MaterialApp + provider wiring
 ├── models/
+│   ├── adb_device.dart            Data class for a physical ADB device
 │   ├── avd_device.dart            Data class for an AVD
 │   ├── form_factor.dart           Form-factor presets
 │   └── api_level.dart             Supported API levels
@@ -161,10 +217,13 @@ lib/
 │   └── device_provider.dart       ChangeNotifier state management
 ├── screens/
 │   ├── home_screen.dart           Main screen (device list)
-│   └── create_device_screen.dart  Create-device form
+│   ├── create_device_screen.dart  Create-device form
+│   └── wireless_adb_screen.dart   Wireless ADB pair & connect screen (manual + QR)
 └── widgets/
-    ├── device_card.dart            Single device card
-    └── log_output_widget.dart      Streaming process log view
+    ├── adb_device_card.dart        Physical device card
+    ├── device_card.dart            Virtual device (AVD) card
+    ├── log_output_widget.dart      Streaming process log view
+    └── qr_painter_widget.dart      QR code renderer using the `qr` package
 
 test/
 └── flavd_test.dart                Unit tests for models and service parsing

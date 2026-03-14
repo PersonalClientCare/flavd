@@ -4,7 +4,7 @@ import "dart:io";
 
 import "package:path/path.dart" as p;
 
-import "avd_service.dart";
+import "package:flavd/services/avd_service.dart";
 
 /// Downloads and installs the Android SDK command-line tools into the
 /// standard Android SDK directory when the SDK is not already present on the
@@ -22,12 +22,14 @@ class SdkInstallerService {
 
   String get sdkRoot {
     // Honour explicit env vars first.
-    final fromEnv = Platform.environment["ANDROID_HOME"] ??
+    final fromEnv =
+        Platform.environment["ANDROID_HOME"] ??
         Platform.environment["ANDROID_SDK_ROOT"];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
 
     // Fall back to the platform-specific standard location.
-    final home = Platform.environment["HOME"] ??
+    final home =
+        Platform.environment["HOME"] ??
         Platform.environment["USERPROFILE"] ??
         ".";
     if (Platform.isWindows) {
@@ -50,7 +52,8 @@ class SdkInstallerService {
     if (Platform.isMacOS) return _downloadUrls["macos"]!;
     if (Platform.isWindows) return _downloadUrls["windows"]!;
     throw const AvdException(
-        "Unsupported platform for automatic SDK installation.");
+      "Unsupported platform for automatic SDK installation.",
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -64,7 +67,8 @@ class SdkInstallerService {
   ///   - `message` is a human-readable description of the current step.
   ///   - `progress` is in `[0.0, 1.0]` or `-1` for indeterminate.
   Future<void> installSdk(
-      void Function(String message, double progress) onProgress) async {
+    void Function(String message, double progress) onProgress,
+  ) async {
     final zipPath = p.join(sdkRoot, "cmdline-tools.zip");
     final cmdlineDir = p.join(sdkRoot, "cmdline-tools");
 
@@ -100,8 +104,12 @@ class SdkInstallerService {
     // 5. Accept licences.
     onProgress("Accepting SDK licences…", 0.50);
     final sdkManager = _sdkManagerPath;
-    await _runWithInput(sdkManager, ["--licenses"],
-        input: "y\n" * 30, env: _env);
+    await _runWithInput(
+      sdkManager,
+      ["--licenses"],
+      input: "y\n" * 30,
+      env: _env,
+    );
 
     // 6. Install emulator and platform-tools.
     onProgress("Installing emulator and platform-tools…", 0.55);
@@ -143,9 +151,10 @@ class SdkInstallerService {
 
       if (response.statusCode != 200) {
         throw AvdException(
-            "Failed to download SDK tools (HTTP ${response.statusCode}).\n"
-            "URL: $url\n"
-            "Please download manually from https://developer.android.com/studio#command-tools");
+          "Failed to download SDK tools (HTTP ${response.statusCode}).\n"
+          "URL: $url\n"
+          "Please download manually from https://developer.android.com/studio#command-tools",
+        );
       }
 
       final total = response.contentLength;

@@ -1,6 +1,6 @@
 import "package:flutter/material.dart";
 
-import "../models/avd_device.dart";
+import "package:flavd/models/avd_device.dart";
 
 /// Card widget representing a single AVD in the device list.
 class DeviceCard extends StatelessWidget {
@@ -8,12 +8,14 @@ class DeviceCard extends StatelessWidget {
     super.key,
     required this.device,
     required this.onStart,
+    required this.onColdBoot,
     required this.onStop,
     required this.onDelete,
   });
 
   final AvdDevice device;
   final VoidCallback onStart;
+  final VoidCallback onColdBoot;
   final VoidCallback onStop;
   final VoidCallback onDelete;
 
@@ -63,11 +65,10 @@ class DeviceCard extends StatelessWidget {
                     onPressed: onStop,
                   )
                 else
-                  _ActionButton(
-                    icon: Icons.play_circle_outline,
-                    tooltip: "Start emulator",
+                  _StartMenuButton(
                     color: colorScheme.primary,
-                    onPressed: onStart,
+                    onStart: onStart,
+                    onColdBoot: onColdBoot,
                   ),
                 const SizedBox(width: 4),
                 _ActionButton(
@@ -168,6 +169,58 @@ class _ActionButton extends StatelessWidget {
       icon: Icon(icon, color: color),
       tooltip: tooltip,
       onPressed: onPressed,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+enum _StartOption { start, coldBoot }
+
+class _StartMenuButton extends StatelessWidget {
+  const _StartMenuButton({
+    required this.color,
+    required this.onStart,
+    required this.onColdBoot,
+  });
+
+  final Color color;
+  final VoidCallback onStart;
+  final VoidCallback onColdBoot;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_StartOption>(
+      icon: Icon(Icons.play_circle_outline, color: color),
+      tooltip: "Start emulator",
+      onSelected: (option) {
+        switch (option) {
+          case _StartOption.start:
+            onStart();
+          case _StartOption.coldBoot:
+            onColdBoot();
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: _StartOption.start,
+          child: ListTile(
+            leading: Icon(Icons.play_arrow),
+            title: Text("Start"),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
+          value: _StartOption.coldBoot,
+          child: ListTile(
+            leading: Icon(Icons.restart_alt),
+            title: Text("Cold Boot"),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ],
     );
   }
 }

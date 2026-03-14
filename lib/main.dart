@@ -1,6 +1,6 @@
 import "package:flutter/material.dart";
 
-import "app.dart";
+import "package:flavd/app.dart";
 
 void main() {
   runApp(buildProviders(const FlavdApp()));

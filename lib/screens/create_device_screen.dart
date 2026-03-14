@@ -2,10 +2,10 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:provider/provider.dart";
 
-import "../models/api_level.dart";
-import "../models/form_factor.dart";
-import "../providers/device_provider.dart";
-import "../widgets/log_output_widget.dart";
+import "package:flavd/models/api_level.dart";
+import "package:flavd/models/form_factor.dart";
+import "package:flavd/providers/device_provider.dart";
+import "package:flavd/widgets/log_output_widget.dart";
 
 /// Screen for creating a new Android Virtual Device.
 class CreateDeviceScreen extends StatefulWidget {
