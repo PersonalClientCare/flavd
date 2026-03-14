@@ -57,5 +57,5 @@ class AvdDevice {
   }
 
   @override
-  String toString() => 'AvdDevice(name: $name, running: $isRunning)';
+  String toString() => "AvdDevice(name: $name, running: $isRunning)";
 }

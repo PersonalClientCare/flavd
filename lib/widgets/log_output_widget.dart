@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
 
 /// A scrollable log output pane that shows lines streamed from a process.
 class LogOutputWidget extends StatelessWidget {
@@ -45,13 +45,13 @@ class _LogLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isError = line.toLowerCase().startsWith('error');
+    final isError = line.toLowerCase().startsWith("error");
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Text(
         line,
         style: TextStyle(
-          fontFamily: 'monospace',
+          fontFamily: "monospace",
           fontSize: 12,
           color: isError
               ? Theme.of(context).colorScheme.error

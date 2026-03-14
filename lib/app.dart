@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import "package:flutter/material.dart";
+import "package:provider/provider.dart";
 
-import 'providers/device_provider.dart';
-import 'screens/home_screen.dart';
-import 'services/avd_service.dart';
-import 'services/sdk_installer_service.dart';
+import "providers/device_provider.dart";
+import "screens/home_screen.dart";
+import "services/avd_service.dart";
+import "services/sdk_installer_service.dart";
 
 class FlavdApp extends StatelessWidget {
   const FlavdApp({super.key});
@@ -12,7 +12,7 @@ class FlavdApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'flavd',
+      title: "flavd",
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),

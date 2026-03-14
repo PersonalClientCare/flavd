@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import "dart:math" as math;
 
 /// Describes a device form-factor preset used when creating an AVD.
 ///
@@ -38,56 +38,56 @@ class FormFactor {
   // ---------------------------------------------------------------------------
 
   static const phone = FormFactor(
-    name: 'Phone',
+    name: "Phone",
     width: 1080,
     height: 2400,
     density: 420,
   );
 
   static const smallPhone = FormFactor(
-    name: 'Small Phone',
+    name: "Small Phone",
     width: 720,
     height: 1280,
     density: 320,
   );
 
   static const tablet = FormFactor(
-    name: 'Tablet',
+    name: "Tablet",
     width: 1600,
     height: 2560,
     density: 240,
   );
 
   static const smallTablet = FormFactor(
-    name: 'Small Tablet',
+    name: "Small Tablet",
     width: 1200,
     height: 1920,
     density: 213,
   );
 
   static const foldable = FormFactor(
-    name: 'Foldable',
+    name: "Foldable",
     width: 1768,
     height: 2208,
     density: 420,
   );
 
   static const tv = FormFactor(
-    name: 'TV (1080p)',
+    name: "TV (1080p)",
     width: 1920,
     height: 1080,
     density: 213,
   );
 
   static const wear = FormFactor(
-    name: 'Wear OS',
+    name: "Wear OS",
     width: 384,
     height: 384,
     density: 320,
   );
 
   static const custom = FormFactor(
-    name: 'Custom',
+    name: "Custom",
     width: 1080,
     height: 1920,
     density: 420,

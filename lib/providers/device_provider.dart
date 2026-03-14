@@ -1,11 +1,11 @@
-import 'dart:async';
+import "dart:async";
 
-import 'package:flutter/foundation.dart';
+import "package:flutter/foundation.dart";
 
-import '../models/avd_device.dart';
-import '../models/form_factor.dart';
-import '../services/avd_service.dart';
-import '../services/sdk_installer_service.dart';
+import "../models/avd_device.dart";
+import "../models/form_factor.dart";
+import "../services/avd_service.dart";
+import "../services/sdk_installer_service.dart";
 
 /// Application-wide state for AVD management.
 class DeviceProvider extends ChangeNotifier {
@@ -34,7 +34,7 @@ class DeviceProvider extends ChangeNotifier {
   double _installProgress = 0;
   double get installProgress => _installProgress;
 
-  String _installMessage = '';
+  String _installMessage = "";
   String get installMessage => _installMessage;
 
   bool _loading = false;
@@ -72,7 +72,7 @@ class DeviceProvider extends ChangeNotifier {
   /// Downloads and installs the Android SDK into `~/.flavd/android-sdk`.
   Future<void> installSdk() async {
     _installing = true;
-    _installMessage = 'Starting installation…';
+    _installMessage = "Starting installation…";
     _installProgress = 0;
     notifyListeners();
 
@@ -173,8 +173,8 @@ class DeviceProvider extends ChangeNotifier {
     int? customWidth,
     int? customHeight,
     int? customDensity,
-    String tag = 'google_apis',
-    String abi = 'x86_64',
+    String tag = "google_apis",
+    String abi = "x86_64",
   }) async {
     _logLines.clear();
     notifyListeners();
@@ -195,12 +195,12 @@ class DeviceProvider extends ChangeNotifier {
       return true;
     } on AvdException catch (e) {
       _error = e.message;
-      _appendLog('Error: ${e.message}');
+      _appendLog("Error: ${e.message}");
       notifyListeners();
       return false;
     } catch (e) {
       _error = e.toString();
-      _appendLog('Error: $e');
+      _appendLog("Error: $e");
       notifyListeners();
       return false;
     }

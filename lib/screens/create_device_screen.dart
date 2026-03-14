@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:provider/provider.dart";
 
-import '../models/api_level.dart';
-import '../models/form_factor.dart';
-import '../providers/device_provider.dart';
-import '../widgets/log_output_widget.dart';
+import "../models/api_level.dart";
+import "../models/form_factor.dart";
+import "../providers/device_provider.dart";
+import "../widgets/log_output_widget.dart";
 
 /// Screen for creating a new Android Virtual Device.
 class CreateDeviceScreen extends StatefulWidget {
@@ -20,22 +20,22 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
 
   // Controllers
   final _nameController = TextEditingController();
-  final _widthController = TextEditingController(text: '1080');
-  final _heightController = TextEditingController(text: '1920');
-  final _densityController = TextEditingController(text: '420');
+  final _widthController = TextEditingController(text: "1080");
+  final _heightController = TextEditingController(text: "1920");
+  final _densityController = TextEditingController(text: "420");
 
   ApiLevel _selectedApiLevel = ApiLevel.supported.first;
   FormFactor _selectedFormFactor = FormFactor.phone;
-  String _selectedAbi = 'x86_64';
-  String _selectedTag = 'google_apis';
+  String _selectedAbi = "x86_64";
+  String _selectedTag = "google_apis";
 
   bool _creating = false;
 
-  static const _abiOptions = ['x86_64', 'x86', 'arm64-v8a', 'armeabi-v7a'];
+  static const _abiOptions = ["x86_64", "x86", "arm64-v8a", "armeabi-v7a"];
   static const _tagOptions = [
-    'google_apis',
-    'google_apis_playstore',
-    'default',
+    "google_apis",
+    "google_apis_playstore",
+    "default",
   ];
 
   @override
@@ -50,7 +50,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Virtual Device')),
+      appBar: AppBar(title: const Text("Create Virtual Device")),
       body: Consumer<DeviceProvider>(
         builder: (context, provider, _) {
           return SingleChildScrollView(
@@ -61,20 +61,20 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ----- Device name -----
-                  _SectionTitle(title: 'Device Name'),
+                  const _SectionTitle(title: "Device Name"),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      hintText: 'e.g. My_Pixel_Device',
+                      hintText: "e.g. My_Pixel_Device",
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return 'Please enter a device name.';
+                        return "Please enter a device name.";
                       }
-                      if (!RegExp(r'^[A-Za-z0-9_.-]+$').hasMatch(v.trim())) {
-                        return 'Only letters, numbers, underscores, hyphens and dots are allowed.';
+                      if (!RegExp(r"^[A-Za-z0-9_.-]+$").hasMatch(v.trim())) {
+                        return "Only letters, numbers, underscores, hyphens and dots are allowed.";
                       }
                       return null;
                     },
@@ -82,10 +82,10 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                   const SizedBox(height: 24),
 
                   // ----- API Level -----
-                  _SectionTitle(title: 'API Level'),
+                  const _SectionTitle(title: "API Level"),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<ApiLevel>(
-                    value: _selectedApiLevel,
+                    initialValue: _selectedApiLevel,
                     decoration: const InputDecoration(border: OutlineInputBorder()),
                     items: ApiLevel.supported
                         .map((l) => DropdownMenuItem(
@@ -100,7 +100,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                   const SizedBox(height: 24),
 
                   // ----- Form Factor -----
-                  _SectionTitle(title: 'Form Factor'),
+                  const _SectionTitle(title: "Form Factor"),
                   const SizedBox(height: 8),
                   _FormFactorGrid(
                     selected: _selectedFormFactor,
@@ -149,7 +149,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.add_circle_outline),
-                      label: Text(_creating ? 'Creating…' : 'Create Device'),
+                      label: Text(_creating ? "Creating…" : "Create Device"),
                     ),
                   ),
                 ],
@@ -184,7 +184,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
       setState(() => _creating = false);
       if (ok) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Device created successfully!')),
+          const SnackBar(content: Text("Device created successfully!")),
         );
         Navigator.of(context).pop();
       }
@@ -239,10 +239,10 @@ class _FormFactorGrid extends StatelessWidget {
 
   IconData _iconForFormFactor(FormFactor f) {
     if (f.isCustom) return Icons.tune;
-    if (f.name.contains('Tablet')) return Icons.tablet_android;
-    if (f.name.contains('TV')) return Icons.tv;
-    if (f.name.contains('Wear')) return Icons.watch;
-    if (f.name.contains('Foldable')) return Icons.tablet_android;
+    if (f.name.contains("Tablet")) return Icons.tablet_android;
+    if (f.name.contains("TV")) return Icons.tv;
+    if (f.name.contains("Wear")) return Icons.watch;
+    if (f.name.contains("Foldable")) return Icons.tablet_android;
     return Icons.smartphone;
   }
 }
@@ -266,7 +266,7 @@ class _CustomSizeFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Custom Display Settings',
+          "Custom Display Settings",
           style: Theme.of(context).textTheme.labelLarge,
         ),
         const SizedBox(height: 8),
@@ -275,24 +275,24 @@ class _CustomSizeFields extends StatelessWidget {
             Expanded(
               child: _NumberField(
                 controller: widthController,
-                label: 'Width (px)',
-                hint: '1080',
+                label: "Width (px)",
+                hint: "1080",
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _NumberField(
                 controller: heightController,
-                label: 'Height (px)',
-                hint: '1920',
+                label: "Height (px)",
+                hint: "1920",
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _NumberField(
                 controller: densityController,
-                label: 'Density (dpi)',
-                hint: '420',
+                label: "Density (dpi)",
+                hint: "420",
               ),
             ),
           ],
@@ -325,8 +325,8 @@ class _NumberField extends StatelessWidget {
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       validator: (v) {
-        final n = int.tryParse(v ?? '');
-        if (n == null || n <= 0) return 'Enter a positive integer.';
+        final n = int.tryParse(v ?? "");
+        if (n == null || n <= 0) return "Enter a positive integer.";
         return null;
       },
     );
@@ -372,7 +372,7 @@ class _AdvancedSectionState extends State<_AdvancedSection> {
             child: Row(
               children: [
                 Text(
-                  'Advanced Options',
+                  "Advanced Options",
                   style: Theme.of(context)
                       .textTheme
                       .titleSmall
@@ -395,9 +395,9 @@ class _AdvancedSectionState extends State<_AdvancedSection> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: widget.selectedAbi,
+                  initialValue: widget.selectedAbi,
                   decoration: const InputDecoration(
-                    labelText: 'ABI',
+                    labelText: "ABI",
                     border: OutlineInputBorder(),
                   ),
                   items: widget.abiOptions
@@ -409,9 +409,9 @@ class _AdvancedSectionState extends State<_AdvancedSection> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: widget.selectedTag,
+                  initialValue: widget.selectedTag,
                   decoration: const InputDecoration(
-                    labelText: 'System Image Tag',
+                    labelText: "System Image Tag",
                     border: OutlineInputBorder(),
                   ),
                   items: widget.tagOptions

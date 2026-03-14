@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
 
-import '../models/avd_device.dart';
+import "../models/avd_device.dart";
 
 /// Card widget representing a single AVD in the device list.
 class DeviceCard extends StatelessWidget {
@@ -57,21 +57,21 @@ class DeviceCard extends StatelessWidget {
                 if (device.isRunning)
                   _ActionButton(
                     icon: Icons.stop_circle_outlined,
-                    tooltip: 'Stop emulator',
+                    tooltip: "Stop emulator",
                     color: colorScheme.error,
                     onPressed: onStop,
                   )
                 else
                   _ActionButton(
                     icon: Icons.play_circle_outline,
-                    tooltip: 'Start emulator',
+                    tooltip: "Start emulator",
                     color: colorScheme.primary,
                     onPressed: onStart,
                   ),
                 const SizedBox(width: 4),
                 _ActionButton(
                   icon: Icons.delete_outline,
-                  tooltip: 'Delete AVD',
+                  tooltip: "Delete AVD",
                   color: colorScheme.onSurfaceVariant,
                   onPressed: onDelete,
                 ),
@@ -94,7 +94,7 @@ class DeviceCard extends StatelessWidget {
     }
 
     return Text(
-      parts.join('  ·  '),
+      parts.join("  ·  "),
       style: Theme.of(context)
           .textTheme
           .bodySmall

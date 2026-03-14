@@ -10,3 +10,4 @@ linter:
     - prefer_final_locals
     - unnecessary_await_in_return
     - unawaited_futures
+    - prefer_double_quotes

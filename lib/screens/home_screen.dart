@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import "package:flutter/material.dart";
+import "package:provider/provider.dart";
 
-import '../models/avd_device.dart';
-import '../providers/device_provider.dart';
-import '../widgets/device_card.dart';
-import 'create_device_screen.dart';
+import "../models/avd_device.dart";
+import "../providers/device_provider.dart";
+import "../widgets/device_card.dart";
+import "create_device_screen.dart";
 
 /// Main screen: shows the list of AVDs and SDK-not-found banner when needed.
 class HomeScreen extends StatefulWidget {
@@ -28,11 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('flavd – AVD Manager'),
+        title: const Text("flavd – AVD Manager"),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: "Refresh",
             onPressed: () => context.read<DeviceProvider>().refresh(),
           ),
         ],
@@ -81,10 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
               : null,
           icon: const Icon(Icons.add),
-          label: const Text('New Device'),
+          label: const Text("New Device"),
           tooltip: provider.sdkReady
-              ? 'Create a new Android Virtual Device'
-              : 'Install SDK first',
+              ? "Create a new Android Virtual Device"
+              : "Install SDK first",
         ),
       ),
     );
@@ -122,13 +122,13 @@ class _DeviceList extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete AVD?'),
+        title: const Text("Delete AVD?"),
         content: Text('Are you sure you want to delete "$name"?\n'
-            'This action cannot be undone.'),
+            "This action cannot be undone."),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text("Cancel"),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -138,7 +138,7 @@ class _DeviceList extends StatelessWidget {
               Navigator.of(ctx).pop();
               context.read<DeviceProvider>().deleteDevice(name);
             },
-            child: const Text('Delete'),
+            child: const Text("Delete"),
           ),
         ],
       ),
@@ -166,14 +166,14 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            sdkReady ? 'No virtual devices yet.' : 'Android SDK not found.',
+            sdkReady ? "No virtual devices yet." : "Android SDK not found.",
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
             sdkReady
                 ? 'Tap "New Device" to create your first AVD.'
-                : 'Use the banner above to install the SDK.',
+                : "Use the banner above to install the SDK.",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -205,13 +205,13 @@ class _SdkNotFoundBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Android SDK not found on this system.',
+                "Android SDK not found on this system.",
                 style: TextStyle(color: scheme.onSecondaryContainer),
               ),
             ),
             FilledButton(
               onPressed: provider.installing ? null : provider.installSdk,
-              child: const Text('Install SDK'),
+              child: const Text("Install SDK"),
             ),
           ],
         ),
