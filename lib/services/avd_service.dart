@@ -18,8 +18,7 @@ class AvdService {
   String? sdkManagerPath;
   String? adbPath;
 
-  bool get isAvailable =>
-      avdManagerPath != null && emulatorPath != null;
+  bool get isAvailable => avdManagerPath != null && emulatorPath != null;
 
   // ---------------------------------------------------------------------------
   // Tool detection
@@ -45,32 +44,39 @@ class AvdService {
       if (out.isNotEmpty) return out.split("\n").first.trim();
     }
 
-    // 2. Check known SDK locations.
-    final sdkRoot = _sdkRoot;
-    if (sdkRoot != null) {
-      final ext = Platform.isWindows ? ".bat" : "";
+    // 2. Check known SDK locations (env var, common roots).
+    //    We check all roots and prefer the first one that has system-images
+    //    installed (i.e. is "complete"), so the emulator can find its images.
+    final roots = <String>[
+      if (_sdkRoot != null) _sdkRoot!,
+      ..._commonSdkRoots,
+    ];
+
+    // Sort: roots that contain system-images come first.
+    final completeRoots = <String>[];
+    final incompleteRoots = <String>[];
+    for (final root in roots) {
+      if (Directory(p.join(root, "system-images")).existsSync()) {
+        completeRoots.add(root);
+      } else {
+        incompleteRoots.add(root);
+      }
+    }
+    final orderedRoots = [...completeRoots, ...incompleteRoots];
+
+    final ext = Platform.isWindows ? ".bat" : "";
+    final exeExt = Platform.isWindows ? ".exe" : "";
+    for (final root in orderedRoots) {
       final candidates = [
-        p.join(sdkRoot, "cmdline-tools", "latest", "bin", "$name$ext"),
-        p.join(sdkRoot, "cmdline-tools", "bin", "$name$ext"),
-        p.join(sdkRoot, "tools", "bin", "$name$ext"),
-        p.join(sdkRoot, "emulator", '$name${Platform.isWindows ? ".exe" : ""}'),
-        p.join(sdkRoot, "platform-tools", '$name${Platform.isWindows ? ".exe" : ""}'),
+        p.join(root, "cmdline-tools", "latest", "bin", "$name$ext"),
+        p.join(root, "cmdline-tools", "bin", "$name$ext"),
+        p.join(root, "tools", "bin", "$name$ext"),
+        p.join(root, "emulator", "$name$exeExt"),
+        p.join(root, "platform-tools", "$name$exeExt"),
       ];
       for (final c in candidates) {
         if (File(c).existsSync()) return c;
       }
-    }
-
-    // 3. Check flavd-managed SDK location.
-    final flavdSdk = _flavdSdkRoot;
-    final ext = Platform.isWindows ? ".bat" : "";
-    final managed = [
-      p.join(flavdSdk, "cmdline-tools", "latest", "bin", "$name$ext"),
-      p.join(flavdSdk, "emulator", '$name${Platform.isWindows ? ".exe" : ""}'),
-      p.join(flavdSdk, "platform-tools", '$name${Platform.isWindows ? ".exe" : ""}'),
-    ];
-    for (final c in managed) {
-      if (File(c).existsSync()) return c;
     }
 
     return null;
@@ -86,11 +92,9 @@ class AvdService {
     final result = await Process.run(avdManagerPath!, ["list", "avd", "-c"]);
     // "-c" (compact) prints one name per line — we also run the verbose form
     // for details.
-    final detailResult =
-        await Process.run(avdManagerPath!, ["list", "avd"]);
+    final detailResult = await Process.run(avdManagerPath!, ["list", "avd"]);
     if (detailResult.exitCode != 0) {
-      throw AvdException(
-          "avdmanager list avd failed: ${detailResult.stderr}");
+      throw AvdException("avdmanager list avd failed: ${detailResult.stderr}");
     }
 
     final names = result.exitCode == 0
@@ -124,13 +128,55 @@ class AvdService {
 
   /// Launches the AVD with [name] in a detached emulator process.
   Future<void> startAvd(String name) async {
+    debugPrint("[startAvd] called with name=$name");
     _requireEmulator();
-    // Use Process.start so the emulator runs independently.
-    await Process.start(
-      emulatorPath!,
-      ["-avd", name],
-      mode: ProcessStartMode.detached,
-    );
+    debugPrint("[startAvd] emulatorPath=$emulatorPath");
+    final env = _sdkEnv;
+    final workDir = p.dirname(emulatorPath!);
+    debugPrint("[startAvd] ANDROID_SDK_ROOT=${env['ANDROID_SDK_ROOT']}");
+    debugPrint("[startAvd] workDir=$workDir");
+
+    try {
+      if (Platform.isWindows) {
+        final sdkRoot = env["ANDROID_SDK_ROOT"] ?? "";
+        final escaped = emulatorPath!.replaceAll("'", "''");
+        final psCommand = "\$env:ANDROID_SDK_ROOT='$sdkRoot'; "
+            "\$env:ANDROID_HOME='$sdkRoot'; "
+            "Start-Process -FilePath '$escaped' "
+            "-ArgumentList '-avd','$name' "
+            "-WorkingDirectory '$workDir' "
+            "-WindowStyle Hidden";
+        debugPrint("[startAvd] psCommand=$psCommand");
+        // Use Process.run so PowerShell actually finishes executing
+        // Start-Process before we return.  Start-Process itself spawns the
+        // emulator as an independent process, so it won't block.
+        final result = await Process.run(
+          "powershell",
+          ["-NoProfile", "-Command", psCommand],
+          environment: env,
+          workingDirectory: workDir,
+        );
+        debugPrint("[startAvd] PowerShell exited with code ${result.exitCode}");
+        if (result.exitCode != 0) {
+          debugPrint("[startAvd] stderr: ${result.stderr}");
+          throw AvdException(
+              "Failed to launch emulator: ${result.stderr.toString().trim()}");
+        }
+      } else {
+        await Process.start(
+          emulatorPath!,
+          ["-avd", name],
+          environment: env,
+          workingDirectory: workDir,
+          mode: ProcessStartMode.detached,
+        );
+        debugPrint("[startAvd] Process.start returned (non-Windows)");
+      }
+    } catch (e, st) {
+      debugPrint("[startAvd] ERROR: $e");
+      debugPrint("[startAvd] STACK: $st");
+      rethrow;
+    }
   }
 
   /// Sends a kill signal to the running emulator for [name].
@@ -191,16 +237,23 @@ class AvdService {
     final createResult = await _runWithInput(
       avdManagerPath!,
       ["create", "avd", "--name", name, "--package", pkg, "--force"],
-      input: "\n", // Accept default when prompted "Do you want to create a custom profile?"
+      input:
+          "\n", // Accept default when prompted "Do you want to create a custom profile?"
     );
     if (createResult.exitCode != 0) {
       throw AvdException("Failed to create AVD: ${createResult.stderr}");
     }
 
     // 3. Apply form-factor overrides to config.ini.
-    final width = formFactor.isCustom ? (customWidth ?? formFactor.width) : formFactor.width;
-    final height = formFactor.isCustom ? (customHeight ?? formFactor.height) : formFactor.height;
-    final density = formFactor.isCustom ? (customDensity ?? formFactor.density) : formFactor.density;
+    final width = formFactor.isCustom
+        ? (customWidth ?? formFactor.width)
+        : formFactor.width;
+    final height = formFactor.isCustom
+        ? (customHeight ?? formFactor.height)
+        : formFactor.height;
+    final density = formFactor.isCustom
+        ? (customDensity ?? formFactor.density)
+        : formFactor.density;
 
     await _applyFormFactor(name, width, height, density, onLog);
     onLog?.call('Done – AVD "$name" created successfully.');
@@ -214,8 +267,8 @@ class AvdService {
   Future<bool> isSystemImageInstalled(
       int apiLevel, String tag, String abi) async {
     if (sdkManagerPath == null) return false;
-    final result = await Process.run(
-        sdkManagerPath!, ["--list_installed", "--verbose"]);
+    final result =
+        await Process.run(sdkManagerPath!, ["--list_installed", "--verbose"]);
     if (result.exitCode != 0) return false;
     final pkg = "system-images;android-$apiLevel;$tag;$abi";
     return result.stdout.toString().contains(pkg);
@@ -229,14 +282,14 @@ class AvdService {
     void Function(String line)? onLog,
   }) async {
     if (sdkManagerPath == null) {
-      throw const AvdException("sdkmanager not found – cannot install system image.");
+      throw const AvdException(
+          "sdkmanager not found – cannot install system image.");
     }
     final pkg = "system-images;android-$apiLevel;$tag;$abi";
     onLog?.call("Installing $pkg …");
 
     // Accept all licenses first.
-    await _runWithInput(sdkManagerPath!, ["--licenses"],
-        input: "y\n" * 20);
+    await _runWithInput(sdkManagerPath!, ["--licenses"], input: "y\n" * 20);
 
     final result = await _runStreamed(
       sdkManagerPath!,
@@ -270,15 +323,59 @@ class AvdService {
       Platform.environment["ANDROID_HOME"] ??
       Platform.environment["ANDROID_SDK_ROOT"];
 
-  String get _flavdSdkRoot {
-    final home =
-        Platform.environment["HOME"] ?? Platform.environment["USERPROFILE"] ?? ".";
-    return p.join(home, ".flavd", "android-sdk");
+  /// Derives the SDK root from the emulator binary path.
+  /// `<sdk>/emulator/emulator.exe` → `<sdk>`.
+  String? get _sdkRootFromEmulator {
+    if (emulatorPath == null) return null;
+    // Go up from <sdk>/emulator/emulator[.exe] to <sdk>.
+    return p.dirname(p.dirname(emulatorPath!));
+  }
+
+  /// Returns the best SDK root by checking which candidate actually contains
+  /// a `system-images` directory (i.e. is "complete").  Falls back to the
+  /// first available candidate.
+  String get _resolvedSdkRoot {
+    final candidates = <String>[
+      if (_sdkRoot != null) _sdkRoot!,
+      if (_sdkRootFromEmulator != null) _sdkRootFromEmulator!,
+      ..._commonSdkRoots,
+    ];
+
+    // Prefer the first candidate that has system images installed.
+    for (final root in candidates) {
+      if (Directory(p.join(root, "system-images")).existsSync()) {
+        return root;
+      }
+    }
+
+    // None have system images; fall back to first available.
+    return candidates.first;
+  }
+
+  /// Well-known SDK locations that Android Studio or manual installs use.
+  List<String> get _commonSdkRoots {
+    final home = Platform.environment["HOME"] ??
+        Platform.environment["USERPROFILE"] ??
+        ".";
+    final roots = <String>[];
+    if (Platform.isWindows) {
+      roots.add(p.join(home, "Android", "android-sdk"));
+      final localAppData = Platform.environment["LOCALAPPDATA"];
+      if (localAppData != null) {
+        roots.add(p.join(localAppData, "Android", "Sdk"));
+      }
+      roots.add(p.join(home, "AppData", "Local", "Android", "Sdk"));
+    } else if (Platform.isMacOS) {
+      roots.add(p.join(home, "Library", "Android", "sdk"));
+    } else {
+      roots.add(p.join(home, "Android", "Sdk"));
+    }
+    return roots;
   }
 
   Map<String, String> get _sdkEnv {
     final env = Map<String, String>.from(Platform.environment);
-    final root = _sdkRoot ?? _flavdSdkRoot;
+    final root = _resolvedSdkRoot;
     env["ANDROID_HOME"] = root;
     env["ANDROID_SDK_ROOT"] = root;
     return env;
@@ -297,8 +394,10 @@ class AvdService {
     final process = await Process.start(exe, args, environment: _sdkEnv);
     process.stdin.write(input);
     await process.stdin.close();
-    final stdout = await process.stdout.transform(systemEncoding.decoder).join();
-    final stderr = await process.stderr.transform(systemEncoding.decoder).join();
+    final stdout =
+        await process.stdout.transform(systemEncoding.decoder).join();
+    final stderr =
+        await process.stderr.transform(systemEncoding.decoder).join();
     final code = await process.exitCode;
     return ProcessResult(process.pid, code, stdout, stderr);
   }
@@ -332,8 +431,9 @@ class AvdService {
   /// Writes form-factor settings into the AVD's config.ini.
   Future<void> _applyFormFactor(String avdName, int width, int height,
       int density, void Function(String)? onLog) async {
-    final home =
-        Platform.environment["HOME"] ?? Platform.environment["USERPROFILE"] ?? ".";
+    final home = Platform.environment["HOME"] ??
+        Platform.environment["USERPROFILE"] ??
+        ".";
     final configPath =
         p.join(home, ".android", "avd", "$avdName.avd", "config.ini");
     final file = File(configPath);
@@ -368,7 +468,8 @@ class AvdService {
   // ---------------------------------------------------------------------------
 
   @visibleForTesting
-  List<AvdDevice> parseAvdListOutput(String output) => _parseAvdListOutput(output);
+  List<AvdDevice> parseAvdListOutput(String output) =>
+      _parseAvdListOutput(output);
 
   List<AvdDevice> _parseAvdListOutput(String output) {
     final devices = <AvdDevice>[];
@@ -431,8 +532,8 @@ class AvdService {
 
   Future<String?> _emulatorNameForPort(int port) async {
     if (adbPath == null) return null;
-    final result = await Process.run(adbPath!,
-        ["-s", "emulator-$port", "emu", "avd", "name"]);
+    final result = await Process.run(
+        adbPath!, ["-s", "emulator-$port", "emu", "avd", "name"]);
     if (result.exitCode != 0) return null;
     final lines = result.stdout
         .toString()

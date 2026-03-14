@@ -1,9 +1,19 @@
 # flavd
 
+<img src="assets/flavd_icon.svg" alt="flavd logo" width="192" />
+
 **flavd** is a cross-platform desktop GUI built with [Flutter](https://flutter.dev/) that wraps the
 [Android Virtual Device (AVD)](https://developer.android.com/studio/run/managing-avds) command-line
 tools (`avdmanager` / `emulator`), giving you a clean interface for creating and managing Android
 emulators without needing the full Android Studio IDE.
+
+---
+
+## Screenshots
+
+| Home screen | Create device |
+|---|---|
+| ![Home screen](assets/screenshots/home.png) | ![Create device](assets/screenshots/create_device.png) |
 
 ---
 
@@ -90,16 +100,24 @@ flutter build linux --release
 When you open flavd on a machine that does not have the Android SDK installed, a banner is shown
 with an **Install SDK** button.  Clicking it will:
 
-1. Download the Android command-line tools ZIP from `dl.google.com` into
-   `~/.flavd/android-sdk/`.
+1. Download the Android command-line tools ZIP from `dl.google.com` into the
+   standard platform-specific SDK directory (see below).
 2. Extract and move the tools to the expected `cmdline-tools/latest/` layout.
 3. Accept all SDK licences automatically.
 4. Install `platform-tools` and `emulator` via `sdkmanager`.
 
+The SDK install location is resolved in this order:
+
+1. `ANDROID_HOME` or `ANDROID_SDK_ROOT` environment variable (if set).
+2. Platform default:
+   - **Windows** – `%LOCALAPPDATA%\Android\Sdk` (if it exists) or `%USERPROFILE%\Android\android-sdk`
+   - **macOS** – `~/Library/Android/sdk`
+   - **Linux** – `~/Android/Sdk`
+
 After installation, the rest of the app becomes available.
 
 If you already have the Android SDK installed (e.g. via Android Studio), flavd detects it
-automatically using the `ANDROID_HOME` / `ANDROID_SDK_ROOT` environment variables or by scanning
+automatically using the environment variables above, well-known platform paths, or by scanning
 `PATH`.
 
 ---
@@ -151,6 +169,24 @@ lib/
 test/
 └── flavd_test.dart                Unit tests for models and service parsing
 ```
+
+---
+
+## Tested on
+
+| Platform | Status |
+|---|---|
+| Windows | ✅ Verified |
+| Linux | ⬜ Untested |
+| macOS | ⬜ Untested |
+
+---
+
+## AI-generated project
+
+This project was mostly generated with the help of AI (Claude). Contributions
+and improvements are welcome — just keep in mind that the original codebase was
+not hand-written.
 
 ---
 

@@ -6,8 +6,9 @@ import "package:path/path.dart" as p;
 
 import "avd_service.dart";
 
-/// Downloads and installs the Android SDK command-line tools into
-/// `~/.flavd/android-sdk` when the SDK is not already present on the system.
+/// Downloads and installs the Android SDK command-line tools into the
+/// standard Android SDK directory when the SDK is not already present on the
+/// system.
 class SdkInstallerService {
   // Command-line tools download URLs (version 11076708, May 2024).
   static const Map<String, String> _downloadUrls = {
@@ -20,17 +21,36 @@ class SdkInstallerService {
   };
 
   String get sdkRoot {
+    // Honour explicit env vars first.
+    final fromEnv = Platform.environment["ANDROID_HOME"] ??
+        Platform.environment["ANDROID_SDK_ROOT"];
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+
+    // Fall back to the platform-specific standard location.
     final home = Platform.environment["HOME"] ??
         Platform.environment["USERPROFILE"] ??
         ".";
-    return p.join(home, ".flavd", "android-sdk");
+    if (Platform.isWindows) {
+      // Check the common Windows locations.
+      final localAppData = Platform.environment["LOCALAPPDATA"];
+      if (localAppData != null) {
+        final candidate = p.join(localAppData, "Android", "Sdk");
+        if (Directory(candidate).existsSync()) return candidate;
+      }
+      return p.join(home, "Android", "android-sdk");
+    } else if (Platform.isMacOS) {
+      return p.join(home, "Library", "Android", "sdk");
+    } else {
+      return p.join(home, "Android", "Sdk");
+    }
   }
 
   String get _downloadUrl {
     if (Platform.isLinux) return _downloadUrls["linux"]!;
     if (Platform.isMacOS) return _downloadUrls["macos"]!;
     if (Platform.isWindows) return _downloadUrls["windows"]!;
-    throw const AvdException("Unsupported platform for automatic SDK installation.");
+    throw const AvdException(
+        "Unsupported platform for automatic SDK installation.");
   }
 
   // ---------------------------------------------------------------------------
@@ -80,7 +100,8 @@ class SdkInstallerService {
     // 5. Accept licences.
     onProgress("Accepting SDK licences…", 0.50);
     final sdkManager = _sdkManagerPath;
-    await _runWithInput(sdkManager, ["--licenses"], input: "y", env: _env);
+    await _runWithInput(sdkManager, ["--licenses"],
+        input: "y\n" * 30, env: _env);
 
     // 6. Install emulator and platform-tools.
     onProgress("Installing emulator and platform-tools…", 0.55);
@@ -169,6 +190,11 @@ class SdkInstallerService {
     Map<String, String>? env,
   }) async {
     final process = await Process.start(exe, args, environment: env);
+
+    // Drain stdout/stderr so the process never blocks on a full pipe buffer.
+    await process.stdout.drain<void>();
+    await process.stderr.drain<void>();
+
     process.stdin.write(input);
     await process.stdin.close();
     await process.exitCode; // wait for completion

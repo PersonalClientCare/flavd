@@ -28,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("flavd – AVD Manager"),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -64,8 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: provider.loading
                     ? const Center(child: CircularProgressIndicator())
                     : provider.devices.isEmpty
-                        ? _EmptyState(sdkReady: provider.sdkReady)
-                        : _DeviceList(devices: provider.devices),
+                    ? _EmptyState(sdkReady: provider.sdkReady)
+                    : _DeviceList(devices: provider.devices),
               ),
             ],
           );
@@ -75,10 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, provider, _) => FloatingActionButton.extended(
           onPressed: provider.sdkReady
               ? () => Navigator.of(context).push<void>(
-                    MaterialPageRoute(
-                      builder: (_) => const CreateDeviceScreen(),
-                    ),
-                  )
+                  MaterialPageRoute(builder: (_) => const CreateDeviceScreen()),
+                )
               : null,
           icon: const Icon(Icons.add),
           label: const Text("New Device"),
@@ -110,7 +107,8 @@ class _DeviceList extends StatelessWidget {
         final device = devices[i];
         return DeviceCard(
           device: device,
-          onStart: () => context.read<DeviceProvider>().startDevice(device.name),
+          onStart: () =>
+              context.read<DeviceProvider>().startDevice(device.name),
           onStop: () => context.read<DeviceProvider>().stopDevice(device.name),
           onDelete: () => _confirmDelete(context, device.name),
         );
@@ -123,8 +121,10 @@ class _DeviceList extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Delete AVD?"),
-        content: Text('Are you sure you want to delete "$name"?\n'
-            "This action cannot be undone."),
+        content: Text(
+          'Are you sure you want to delete "$name"?\n'
+          "This action cannot be undone.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -157,7 +157,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: .min,
         children: [
           Icon(
             Icons.smartphone_outlined,
@@ -175,9 +175,9 @@ class _EmptyState extends StatelessWidget {
                 ? 'Tap "New Device" to create your first AVD.'
                 : "Use the banner above to install the SDK.",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-            textAlign: TextAlign.center,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            textAlign: .center,
           ),
         ],
       ),
@@ -201,7 +201,10 @@ class _SdkNotFoundBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: scheme.onSecondaryContainer),
+            Icon(
+              Icons.warning_amber_rounded,
+              color: scheme.onSecondaryContainer,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -223,8 +226,7 @@ class _SdkNotFoundBanner extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _InstallProgressBanner extends StatelessWidget {
-  const _InstallProgressBanner(
-      {required this.message, required this.progress});
+  const _InstallProgressBanner({required this.message, required this.progress});
 
   final String message;
   final double progress;
@@ -234,13 +236,11 @@ class _InstallProgressBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
           Text(message, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 6),
-          LinearProgressIndicator(
-            value: progress < 0 ? null : progress,
-          ),
+          LinearProgressIndicator(value: progress < 0 ? null : progress),
         ],
       ),
     );
@@ -269,10 +269,9 @@ class _ErrorBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(
-                    color: scheme.onErrorContainer, fontSize: 13),
+                style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
                 maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                overflow: .ellipsis,
               ),
             ),
             IconButton(

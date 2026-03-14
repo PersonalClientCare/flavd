@@ -58,7 +58,7 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
                   // ----- Device name -----
                   const _SectionTitle(title: "Device Name"),
@@ -86,12 +86,16 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<ApiLevel>(
                     initialValue: _selectedApiLevel,
-                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
                     items: ApiLevel.supported
-                        .map((l) => DropdownMenuItem(
-                              value: l,
-                              child: Text(l.toString()),
-                            ))
+                        .map(
+                          (l) => DropdownMenuItem(
+                            value: l,
+                            child: Text(l.toString()),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setState(() => _selectedApiLevel = v);
@@ -138,18 +142,25 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
                   if (provider.logLines.isNotEmpty) const SizedBox(height: 16),
 
                   // ----- Create button -----
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _creating ? null : () => _submit(provider),
-                      icon: _creating
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add_circle_outline),
-                      label: Text(_creating ? "Creating…" : "Create Device"),
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.sizeOf(context).width * 0.5,
+                      child: FilledButton.icon(
+                        onPressed: _creating ? null : () => _submit(provider),
+                        icon: _creating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.add_circle_outline),
+                        label: Text(
+                          _creating ? "Creating…" : "Create Device",
+                          style: const TextStyle(fontWeight: .bold),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -170,12 +181,15 @@ class _CreateDeviceScreenState extends State<CreateDeviceScreen> {
       name: _nameController.text.trim(),
       apiLevel: _selectedApiLevel.level,
       formFactor: _selectedFormFactor,
-      customWidth:
-          _selectedFormFactor.isCustom ? int.tryParse(_widthController.text) : null,
-      customHeight:
-          _selectedFormFactor.isCustom ? int.tryParse(_heightController.text) : null,
-      customDensity:
-          _selectedFormFactor.isCustom ? int.tryParse(_densityController.text) : null,
+      customWidth: _selectedFormFactor.isCustom
+          ? int.tryParse(_widthController.text)
+          : null,
+      customHeight: _selectedFormFactor.isCustom
+          ? int.tryParse(_heightController.text)
+          : null,
+      customDensity: _selectedFormFactor.isCustom
+          ? int.tryParse(_densityController.text)
+          : null,
       tag: _selectedTag,
       abi: _selectedAbi,
     );
@@ -204,10 +218,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context)
-          .textTheme
-          .titleSmall
-          ?.copyWith(fontWeight: FontWeight.bold),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 }
@@ -263,7 +276,7 @@ class _CustomSizeFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         Text(
           "Custom Display Settings",
@@ -362,7 +375,7 @@ class _AdvancedSectionState extends State<_AdvancedSection> {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         InkWell(
           onTap: () => setState(() => _expanded = !_expanded),
@@ -373,10 +386,9 @@ class _AdvancedSectionState extends State<_AdvancedSection> {
               children: [
                 Text(
                   "Advanced Options",
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(width: 4),
                 Icon(

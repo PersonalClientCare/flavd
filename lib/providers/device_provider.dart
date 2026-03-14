@@ -69,7 +69,7 @@ class DeviceProvider extends ChangeNotifier {
   // SDK installation
   // ---------------------------------------------------------------------------
 
-  /// Downloads and installs the Android SDK into `~/.flavd/android-sdk`.
+  /// Downloads and installs the Android SDK into the standard SDK directory.
   Future<void> installSdk() async {
     _installing = true;
     _installMessage = "Starting installation…";
@@ -125,13 +125,20 @@ class DeviceProvider extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   Future<void> startDevice(String name) async {
+    debugPrint("[startDevice] called with name=$name");
     try {
       await _avdService.startAvd(name);
       // Give the emulator a moment to register, then refresh.
       await Future<void>.delayed(const Duration(seconds: 2));
       await refresh();
     } on AvdException catch (e) {
+      debugPrint("[startDevice] AvdException: ${e.message}");
       _error = e.message;
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint("[startDevice] Unexpected error: $e");
+      debugPrint("[startDevice] Stack: $st");
+      _error = e.toString();
       notifyListeners();
     }
   }

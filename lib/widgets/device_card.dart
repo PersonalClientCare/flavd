@@ -36,13 +36,14 @@ class DeviceCard extends StatelessWidget {
             // Device info.
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
                   Text(
                     device.name,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: .ellipsis,
                   ),
                   const SizedBox(height: 2),
                   _buildSubtitle(context),
@@ -52,7 +53,7 @@ class DeviceCard extends StatelessWidget {
 
             // Actions.
             Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: [
                 if (device.isRunning)
                   _ActionButton(
@@ -95,11 +96,10 @@ class DeviceCard extends StatelessWidget {
 
     return Text(
       parts.join("  ·  "),
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      overflow: .ellipsis,
     );
   }
 }
@@ -114,7 +114,7 @@ class _StatusIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isRunning
-        ? const Color(0xFF4CAF50)  // green
+        ? const Color(0xFF4CAF50) // green
         : Theme.of(context).colorScheme.outlineVariant;
 
     return Stack(
@@ -134,7 +134,7 @@ class _StatusIndicator extends StatelessWidget {
               height: 10,
               decoration: BoxDecoration(
                 color: const Color(0xFF4CAF50),
-                shape: BoxShape.circle,
+                shape: .circle,
                 border: Border.all(
                   color: Theme.of(context).colorScheme.surface,
                   width: 1.5,

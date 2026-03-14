@@ -14,22 +14,24 @@ class FlavdApp extends StatelessWidget {
     return MaterialApp(
       title: "flavd",
       debugShowCheckedModeBanner: false,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
+      theme: _buildTheme(.light),
+      darkTheme: _buildTheme(.dark),
       themeMode: ThemeMode.system,
       home: const HomeScreen(),
     );
   }
 
   ThemeData _buildTheme(Brightness brightness) {
-    final base = brightness == Brightness.light
+    final base = brightness == .light
         ? ColorScheme.fromSeed(
             seedColor: const Color(0xFF1B6AC9),
-            brightness: Brightness.light,
+            secondary: const Color(0xFF3DDC84),
+            brightness: .light,
           )
         : ColorScheme.fromSeed(
             seedColor: const Color(0xFF1B6AC9),
-            brightness: Brightness.dark,
+            primary: const Color(0xFF3DDC84),
+            brightness: .dark,
           );
 
     return ThemeData(
@@ -51,10 +53,8 @@ ChangeNotifierProvider<DeviceProvider> buildProviders(Widget child) {
   final sdkInstaller = SdkInstallerService();
 
   return ChangeNotifierProvider<DeviceProvider>(
-    create: (_) => DeviceProvider(
-      avdService: avdService,
-      sdkInstaller: sdkInstaller,
-    ),
+    create: (_) =>
+        DeviceProvider(avdService: avdService, sdkInstaller: sdkInstaller),
     child: child,
   );
 }
