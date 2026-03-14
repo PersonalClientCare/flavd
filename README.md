@@ -178,7 +178,7 @@ test/
 |---|---|
 | Windows | ✅ Verified |
 | Linux | ⬜ Untested |
-| macOS | ⬜ Untested |
+| macOS | ✅ Untested |
 
 ---
 

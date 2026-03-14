@@ -47,10 +47,7 @@ class AvdService {
     // 2. Check known SDK locations (env var, common roots).
     //    We check all roots and prefer the first one that has system-images
     //    installed (i.e. is "complete"), so the emulator can find its images.
-    final roots = <String>[
-      if (_sdkRoot != null) _sdkRoot!,
-      ..._commonSdkRoots,
-    ];
+    final roots = <String>[if (_sdkRoot != null) _sdkRoot!, ..._commonSdkRoots];
 
     // Sort: roots that contain system-images come first.
     final completeRoots = <String>[];
@@ -99,11 +96,11 @@ class AvdService {
 
     final names = result.exitCode == 0
         ? result.stdout
-            .toString()
-            .split("\n")
-            .map((l) => l.trim())
-            .where((l) => l.isNotEmpty)
-            .toSet()
+              .toString()
+              .split("\n")
+              .map((l) => l.trim())
+              .where((l) => l.isNotEmpty)
+              .toSet()
         : <String>{};
 
     final devices = _parseAvdListOutput(detailResult.stdout.toString());
@@ -140,7 +137,8 @@ class AvdService {
       if (Platform.isWindows) {
         final sdkRoot = env["ANDROID_SDK_ROOT"] ?? "";
         final escaped = emulatorPath!.replaceAll("'", "''");
-        final psCommand = "\$env:ANDROID_SDK_ROOT='$sdkRoot'; "
+        final psCommand =
+            "\$env:ANDROID_SDK_ROOT='$sdkRoot'; "
             "\$env:ANDROID_HOME='$sdkRoot'; "
             "Start-Process -FilePath '$escaped' "
             "-ArgumentList '-avd','$name' "
@@ -160,17 +158,59 @@ class AvdService {
         if (result.exitCode != 0) {
           debugPrint("[startAvd] stderr: ${result.stderr}");
           throw AvdException(
-              "Failed to launch emulator: ${result.stderr.toString().trim()}");
+            "Failed to launch emulator: ${result.stderr.toString().trim()}",
+          );
         }
       } else {
-        await Process.start(
+        final process = await Process.start(
           emulatorPath!,
           ["-avd", name],
           environment: env,
           workingDirectory: workDir,
-          mode: ProcessStartMode.detached,
         );
         debugPrint("[startAvd] Process.start returned (non-Windows)");
+
+        // Collect stderr for a few seconds so we can detect early failures
+        // (e.g. missing system image, GPU problems).  We intentionally do NOT
+        // await the full process – the emulator is long-running.
+        final stderrBuf = StringBuffer();
+        final stderrSub = process.stderr
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen((line) {
+              debugPrint("[emulator stderr] $line");
+              stderrBuf.writeln(line);
+            });
+
+        // Also drain stdout so the pipe buffer never fills up.
+        final stdoutSub = process.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen((line) {
+              debugPrint("[emulator stdout] $line");
+            });
+
+        // Wait a short window and check if the process already exited
+        // (which means something went wrong immediately).
+        final earlyExit = await Future.any<int?>([
+          process.exitCode.then<int?>((c) => c),
+          Future<int?>.delayed(const Duration(seconds: 4), () => null),
+        ]);
+
+        if (earlyExit != null && earlyExit != 0) {
+          await stderrSub.cancel();
+          await stdoutSub.cancel();
+          final msg = stderrBuf.toString().trim();
+          throw AvdException(
+            "Emulator exited immediately (code $earlyExit)."
+            "${msg.isNotEmpty ? '\n$msg' : ''}",
+          );
+        }
+
+        // The emulator is still running – detach the listeners so the
+        // process keeps going in the background.
+        unawaited(stderrSub.cancel());
+        unawaited(stdoutSub.cancel());
       }
     } catch (e, st) {
       debugPrint("[startAvd] ERROR: $e");
@@ -229,7 +269,11 @@ class AvdService {
     if (!await isSystemImageInstalled(apiLevel, tag, abi)) {
       onLog?.call('System image "$pkg" not found – installing…');
       await installSystemImage(
-          apiLevel: apiLevel, tag: tag, abi: abi, onLog: onLog);
+        apiLevel: apiLevel,
+        tag: tag,
+        abi: abi,
+        onLog: onLog,
+      );
     }
 
     // 2. Create the AVD.
@@ -265,10 +309,15 @@ class AvdService {
 
   /// Returns `true` when the system image package is installed.
   Future<bool> isSystemImageInstalled(
-      int apiLevel, String tag, String abi) async {
+    int apiLevel,
+    String tag,
+    String abi,
+  ) async {
     if (sdkManagerPath == null) return false;
-    final result =
-        await Process.run(sdkManagerPath!, ["--list_installed", "--verbose"]);
+    final result = await Process.run(sdkManagerPath!, [
+      "--list_installed",
+      "--verbose",
+    ]);
     if (result.exitCode != 0) return false;
     final pkg = "system-images;android-$apiLevel;$tag;$abi";
     return result.stdout.toString().contains(pkg);
@@ -283,7 +332,8 @@ class AvdService {
   }) async {
     if (sdkManagerPath == null) {
       throw const AvdException(
-          "sdkmanager not found – cannot install system image.");
+        "sdkmanager not found – cannot install system image.",
+      );
     }
     final pkg = "system-images;android-$apiLevel;$tag;$abi";
     onLog?.call("Installing $pkg …");
@@ -309,7 +359,8 @@ class AvdService {
   void _requireAvdManager() {
     if (avdManagerPath == null) {
       throw const AvdException(
-          "avdmanager not found. Please install the Android SDK command-line tools.");
+        "avdmanager not found. Please install the Android SDK command-line tools.",
+      );
     }
   }
 
@@ -354,7 +405,8 @@ class AvdService {
 
   /// Well-known SDK locations that Android Studio or manual installs use.
   List<String> get _commonSdkRoots {
-    final home = Platform.environment["HOME"] ??
+    final home =
+        Platform.environment["HOME"] ??
         Platform.environment["USERPROFILE"] ??
         ".";
     final roots = <String>[];
@@ -389,15 +441,20 @@ class AvdService {
     return result;
   }
 
-  Future<ProcessResult> _runWithInput(String exe, List<String> args,
-      {required String input}) async {
+  Future<ProcessResult> _runWithInput(
+    String exe,
+    List<String> args, {
+    required String input,
+  }) async {
     final process = await Process.start(exe, args, environment: _sdkEnv);
     process.stdin.write(input);
     await process.stdin.close();
-    final stdout =
-        await process.stdout.transform(systemEncoding.decoder).join();
-    final stderr =
-        await process.stderr.transform(systemEncoding.decoder).join();
+    final stdout = await process.stdout
+        .transform(systemEncoding.decoder)
+        .join();
+    final stderr = await process.stderr
+        .transform(systemEncoding.decoder)
+        .join();
     final code = await process.exitCode;
     return ProcessResult(process.pid, code, stdout, stderr);
   }
@@ -429,17 +486,29 @@ class AvdService {
   }
 
   /// Writes form-factor settings into the AVD's config.ini.
-  Future<void> _applyFormFactor(String avdName, int width, int height,
-      int density, void Function(String)? onLog) async {
-    final home = Platform.environment["HOME"] ??
+  Future<void> _applyFormFactor(
+    String avdName,
+    int width,
+    int height,
+    int density,
+    void Function(String)? onLog,
+  ) async {
+    final home =
+        Platform.environment["HOME"] ??
         Platform.environment["USERPROFILE"] ??
         ".";
-    final configPath =
-        p.join(home, ".android", "avd", "$avdName.avd", "config.ini");
+    final configPath = p.join(
+      home,
+      ".android",
+      "avd",
+      "$avdName.avd",
+      "config.ini",
+    );
     final file = File(configPath);
     if (!file.existsSync()) {
       onLog?.call(
-          "Warning: config.ini not found at $configPath – skipping form-factor override.");
+        "Warning: config.ini not found at $configPath – skipping form-factor override.",
+      );
       return;
     }
 
@@ -479,34 +548,42 @@ class AvdService {
     for (final block in blocks) {
       final name = _extractField(block, "Name");
       if (name == null) continue;
-      devices.add(AvdDevice(
-        name: name,
-        device: _extractField(block, "Device"),
-        path: _extractField(block, "Path"),
-        target: _extractField(block, "Target"),
-        basedOn: _extractBasedOn(block),
-        tagAbi: _extractTagAbi(block),
-        sdcard: _extractField(block, "Sdcard"),
-      ));
+      devices.add(
+        AvdDevice(
+          name: name,
+          device: _extractField(block, "Device"),
+          path: _extractField(block, "Path"),
+          target: _extractField(block, "Target"),
+          basedOn: _extractBasedOn(block),
+          tagAbi: _extractTagAbi(block),
+          sdcard: _extractField(block, "Sdcard"),
+        ),
+      );
     }
     return devices;
   }
 
   String? _extractField(String block, String key) {
-    final match =
-        RegExp("^\\s*$key:\\s*(.+)", multiLine: true).firstMatch(block);
+    final match = RegExp(
+      "^\\s*$key:\\s*(.+)",
+      multiLine: true,
+    ).firstMatch(block);
     return match?.group(1)?.trim();
   }
 
   String? _extractBasedOn(String block) {
-    final match =
-        RegExp(r"Based on:\s*([^T]+)", multiLine: true).firstMatch(block);
+    final match = RegExp(
+      r"Based on:\s*([^T]+)",
+      multiLine: true,
+    ).firstMatch(block);
     return match?.group(1)?.trim();
   }
 
   String? _extractTagAbi(String block) {
-    final match =
-        RegExp(r"Tag/ABI:\s*(\S+)", multiLine: true).firstMatch(block);
+    final match = RegExp(
+      r"Tag/ABI:\s*(\S+)",
+      multiLine: true,
+    ).firstMatch(block);
     return match?.group(1)?.trim();
   }
 
@@ -532,8 +609,13 @@ class AvdService {
 
   Future<String?> _emulatorNameForPort(int port) async {
     if (adbPath == null) return null;
-    final result = await Process.run(
-        adbPath!, ["-s", "emulator-$port", "emu", "avd", "name"]);
+    final result = await Process.run(adbPath!, [
+      "-s",
+      "emulator-$port",
+      "emu",
+      "avd",
+      "name",
+    ]);
     if (result.exitCode != 0) return null;
     final lines = result.stdout
         .toString()
