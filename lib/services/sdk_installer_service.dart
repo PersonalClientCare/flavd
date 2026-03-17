@@ -107,7 +107,7 @@ class SdkInstallerService {
     await _runWithInput(
       sdkManager,
       ["--licenses"],
-      input: "y\n" * 30,
+      inputs: ["y" * 7],
       env: _env,
     );
 
@@ -195,7 +195,7 @@ class SdkInstallerService {
   Future<void> _runWithInput(
     String exe,
     List<String> args, {
-    required String input,
+    required List<String> inputs,
     Map<String, String>? env,
   }) async {
     final process = await Process.start(exe, args, environment: env);
@@ -204,7 +204,10 @@ class SdkInstallerService {
     await process.stdout.drain<void>();
     await process.stderr.drain<void>();
 
-    process.stdin.write(input);
+    for (final input in inputs) {
+      process.stdin.writeln(input);
+      await process.stdin.flush();
+    }
     await process.stdin.close();
     await process.exitCode; // wait for completion
   }
